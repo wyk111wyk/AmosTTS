@@ -1,0 +1,26 @@
+[
+    {
+        "role":"Girl","title":"小女孩","instruction":"声音模仿女孩。"
+    },
+    {
+        "role":"Boy","title":"小男孩","instruction":"声音模仿男孩。"
+    },
+    {
+        "role":"YoungAdultFemale","title":"青年女","instruction":"声音模仿年轻的成年女性。"
+    },
+    {
+        "role":"YoungAdultMale","title":"青年男","instruction":"声音模仿年轻的成年男性。"
+    },
+    {
+        "role":"OlderAdultFemale","title":"成熟女","instruction":"声音模仿年长的成年女性。"
+    },
+    {
+        "role":"OlderAdultMale","title":"成熟男","instruction":"声音模仿年长的成年男性。"
+    },
+    {
+        "role":"SeniorFemale","title":"老年女","instruction":"声音模仿年老女性。"
+    },
+    {
+        "role":"SeniorMale","title":"老年男","instruction":"声音模仿年老男性。"
+    }
+]

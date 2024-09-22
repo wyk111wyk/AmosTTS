@@ -1,0 +1,358 @@
+//
+//  TextToSpeechBot.swift
+//  AmosVoice
+//
+//  Created by AmosFitness on 2023/4/5.
+//
+
+import Foundation
+import SwiftUI
+import AmosBase
+import MicrosoftCognitiveServicesSpeech
+
+class MsTTSEngine {
+    @AppStorage("TotalPlayCount") private var totalPlayCount: Int = 0
+    
+    var sub: String!
+    var region: String!
+    var synthesizer = SPXSpeechSynthesizer()
+    var speechConfig: SPXSpeechConfiguration?
+    
+    let isDebuging: Bool
+    var isSpeaking: Bool = false
+    
+    // MARK: - Initialization
+    init?(
+        sub: String,
+        region: String,
+        isDebuging: Bool = false
+    ) {
+        //        sub = "89b56f435e4b4586bf98288c2318aa59"
+        //        region = "eastaisa"
+        //        sub = "f54b518a21c74ef09e26fd6f1b9fa9af"
+        //        region = "eastus"
+        
+        guard sub.isNotEmpty && region.isNotEmpty else {
+            return nil
+        }
+        
+        do {
+            try speechConfig = SPXSpeechConfiguration(subscription: sub, region: region)
+        } catch {
+            debugPrint("MsTTS Config 初始化错误: \(error)")
+            return nil
+        }
+        
+        self.isDebuging = isDebuging
+    }
+    
+    // MARK: Method
+    @discardableResult
+    func stop() -> Bool {
+        guard isSpeaking else { return true }
+        do {
+            try synthesizer.stopSpeaking()
+            return true
+        } catch {
+            debugPrint("结束播放时发生错误：\(error)")
+            return false
+        }
+    }
+    
+    func play(
+        for allContents: [TTSContent],
+        defaultConfig: TTSConfig,
+        speechCallBack: @escaping (PlayStatus) -> Void
+    ) {
+        if isSpeaking {
+            stop()
+        }else {
+            synthesisToSpeaker(
+                combineContents(for: allContents),
+                defaultConfig: defaultConfig,
+                speechCallBack: speechCallBack
+            )
+        }
+    }
+    
+    // 合并文字和停顿成为一个HTML文本
+    func combineContents(for allContents: [TTSContent]) -> [TTSContent] {
+        var playableContents = allContents
+        
+        // 合并停顿
+        var breakIndexs: [Int] = []
+        // 提取停顿的内容的index
+        for index in playableContents.indices {
+            if playableContents[index].type != .text {
+                breakIndexs.append(index)
+            }
+        }
+        // 合并文字内容
+        if isDebuging {
+            debugPrint("共有\(breakIndexs.count)个停顿")
+        }
+        for index in breakIndexs {
+            if index > 0 {
+                let type = playableContents[index].type
+                if case let .pause(level) = type {
+                    let pauseSign =
+"""
+<break time="\(level.pause())ms" />
+"""
+                    playableContents[index-1].speechText = playableContents[index-1].speechText + pauseSign
+                    
+                    // 删除停顿内容
+                    playableContents.remove(at: index)
+                }
+            }
+        }
+        
+        return playableContents
+    }
+    
+    // 传入 defaultConfig 则所有的文件都使用默认设置进行播放
+    // 传入 nil 则使用SSML的方式自定义每一段文字的播放属性
+    func synthesisToSpeaker(
+        _ allContents: [TTSContent],
+        defaultConfig: TTSConfig,
+        audioFileName: String? = nil,
+        speechCallBack: @escaping (PlayStatus) -> Void
+    ) {
+        debugPrint("微软TTS：开始播放")
+        // 获取播放属性
+        guard speechConfig != nil else { return }
+        // 设置播放属性
+        // 如果同时设置了 SpeechSynthesisVoiceName 和 SpeechSynthesisLanguage 会忽略 SpeechSynthesisLanguage 设置。 系统会讲你使用 SpeechSynthesisVoiceName 指定的语音。
+        // 如果使用语音合成标记语言 (SSML) 设置了 voice 元素，则会忽略 SpeechSynthesisVoiceName 和 SpeechSynthesisLanguage 设置
+//            if let config {
+//                speechConfig?.speechSynthesisLanguage = config.speaker.region
+//                speechConfig?.speechSynthesisVoiceName = config.speaker.audioName
+//            }
+        // riff24Khz16BitMonoPcm 格式的比特率为 384 kbps
+        // audio24Khz48KBitRateMonoMp3 的比特率仅为 48 kbps
+        speechConfig?.setSpeechSynthesisOutputFormat(.riff16Khz16BitMonoPcm)
+        
+        do {
+            // 创建播放合成器
+            var audioConfig: SPXAudioConfiguration
+            if let audioFileName,
+               let fileUrl = SimpleFileHelper().filePath(audioFileName) {
+                audioConfig = try SPXAudioConfiguration(wavFileOutput: fileUrl.path())
+                if isDebuging {
+                    debugPrint("储存 wav 的文件地址:\(fileUrl)")
+                }
+            }else {
+                audioConfig = SPXAudioConfiguration()
+            }
+            synthesizer = try SPXSpeechSynthesizer(
+                speechConfiguration: speechConfig!,
+                audioConfiguration: audioConfig
+            )
+            attachAction(
+                allContents: allContents,
+                speechCallBack: speechCallBack
+            )
+            let pureText = allContents.fullText
+            var textLang: String = SimpleLanguage().detectLanguage(
+                for: pureText
+            )?.rawValue ?? Locale.current.identifier
+            if textLang.hasPrefix("zh") {
+                textLang = "zh-CN"
+            }
+            if isDebuging {
+                debugPrint("播放内容文字:\(pureText)")
+            }
+            
+            // 合成用来播放的SSML（包含文字和播放属性）
+            let contentText = allContents.reduce("") {
+                partialResult,
+                content in
+                partialResult + assembleSSML(
+                    content,
+                    defaultConfig: defaultConfig
+                )
+            }
+            let finalText = addBase(
+                for: contentText,
+                language: textLang
+            )
+            let _ = try synthesizer.startSpeakingSsml(finalText)
+            
+//                debugPrint("TTS - 播放时长：\(result.audioDuration.toDuration(units: [.second, .minute]))")
+//                let dataCount = Double(result.audioData?.count ?? 0)
+//                debugPrint("TTS - 播放文件：\(dataCount.toStorage())")
+//                let stream = try SPXAudioDataStream.init(from: result)
+        } catch {
+            debugPrint("播放发生错误:\(error)")
+            speechCallBack(.error(error: error))
+        }
+    }
+    
+    private func attachAction(
+        allContents: [TTSContent],
+        speechCallBack: @escaping (PlayStatus) -> Void
+    ) {
+        // 开始语音播放
+        synthesizer.addSynthesisStartedEventHandler { _, evt in
+//            debugPrint("TTS语音播放 - 开始:\(evt.description)")
+            self.isSpeaking = true
+            speechCallBack(.start)
+        }
+        
+        // 语音正在继续播放
+        synthesizer.addSynthesizingEventHandler { _, _ in
+//            self.isSpeaking = true
+//            speechCallBack(.play(reading: "Continue"))
+        }
+        
+        // 播放完成或被停止
+        synthesizer.addSynthesisCompletedEventHandler { _, _ in
+            debugPrint("TTS语音播放 - 结束")
+            self.isSpeaking = false
+            speechCallBack(.stop)
+            self.totalPlayCount += allContents.reduce(0, { partialResult, cont in
+                partialResult + cont.speechText.count
+            })
+        }
+        
+        // 播放被取消
+        synthesizer.addSynthesisCanceledEventHandler { _, evt in
+            debugPrint("TTS语音播放 - 取消")
+            let cancellationDetails = try! SPXSpeechSynthesisCancellationDetails(
+                fromCanceledSynthesisResult: evt.result
+            )
+            if self.isDebuging {
+                debugPrint("CANCELED: ErrorCode= \(cancellationDetails.errorCode.rawValue)")
+                debugPrint("CANCELED: ErrorDetails= \(cancellationDetails.errorDetails as String?)")
+                debugPrint("CANCELED: Did you update the subscription info?")
+            }
+            self.isSpeaking = false
+            speechCallBack(
+                .error(
+                    error: SimpleError.customError(
+                        msg: (
+                            cancellationDetails.errorDetails as String?
+                        ).wrapped
+                    )
+                )
+            )
+        }
+        
+        // 播放的进度
+        synthesizer.addSynthesisWordBoundaryEventHandler { synthesis, evt in
+            let inputText = evt.text
+            //            debugPrint("TTS - 正在播放：\(inputText)")
+            //            debugPrint("text offset: \(evt.textOffset), word length: \(evt.wordLength)")
+            //            self.isSpeaking = true
+            speechCallBack(
+                .play(
+                    reading: (inputText, Int(evt.textOffset), Int(evt.wordLength))
+                )
+            )
+        }
+    }
+}
+
+extension MsTTSEngine {
+    private func assembleSSML(_ cont: TTSContent, defaultConfig: TTSConfig) -> String {
+        let config =
+        if cont.useDefaultConfig { defaultConfig }
+        else { cont.config }
+        
+        switch cont.type {
+        case .text:
+            var finalText = ""
+            // 发音人
+            let voiceFront =
+"""
+<voice name="\(config.speaker.audioName)">
+"""
+            finalText += voiceFront
+            
+            // 语速
+            let rateFront =
+"""
+<prosody rate="\(config.rate)%">
+"""
+            finalText += rateFront
+            
+            // 身分和语气
+            if let role = config.role,
+               let style = config.style {
+                let roleFront =
+"""
+<mstts:express-as role="\(role.role)" style="\(style.style)">
+"""
+                finalText += roleFront
+            }else if let style = config.style {
+                let styleFront =
+"""
+<mstts:express-as style="\(style.style)">
+"""
+                finalText += styleFront
+            }else if let role = config.role {
+                let roleFront =
+"""
+<mstts:express-as role="\(role.role)">
+"""
+                finalText += roleFront
+            }
+            
+            let voiceBottom = "</voice>"
+            let rateBottom = "</prosody>"
+            let roleBottom = "</mstts:express-as>"
+            
+            // 朗读的内容
+            finalText += cont.speechText
+            
+            // 加上尾部
+            if finalText.contains("mstts:express-as") {
+                finalText += roleBottom
+            }
+            finalText += rateBottom
+            finalText += voiceBottom
+            
+            if isDebuging {
+                debugPrint("单独合成SSML：")
+                debugPrint(finalText)
+            }
+            
+            return finalText
+        case .pause(let level):
+            return
+"""
+<break time="\(level.pause())ms" />
+"""
+        }
+    }
+    
+    // language: 根文档的语言。 该值可以包含语言代码，例如 en（英语），也可以包含区域设置，例如 en-US（美国英语）。
+    private func addBase(
+        for text: String,
+        language: String
+    ) -> String {
+        var baseFront = ""
+        if text.contains(/mstts/) {
+            baseFront =
+"""
+<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis"
+       xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="\(language)">
+"""
+        }else {
+            baseFront =
+"""
+<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="\(language)">
+"""
+        }
+        let baseBottom = "</speak>"
+        
+        let finalText = baseFront + text + baseBottom
+        
+        if isDebuging {
+            debugPrint("最终组合的合成SSML：")
+            print(finalText)
+        }
+        
+        return finalText
+    }
+}

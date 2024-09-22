@@ -5,20 +5,32 @@ import PackageDescription
 
 let package = Package(
     name: "AmosTTS",
+    defaultLocalization: "en",
+    platforms: [
+        .iOS(.v17),
+        .macOS(.v14),
+        .watchOS(.v10)
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "AmosTTS",
             targets: ["AmosTTS"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/wyk111wyk/AmosBase.git", .upToNextMajor(from: "1.0.0"))
+    ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "AmosTTS"),
-        .testTarget(
-            name: "AmosTTSTests",
-            dependencies: ["AmosTTS"]
+            name: "AmosTTS",
+            dependencies: ["AmosBase", "MSTTSFramework"],
+            path: "Sources",
+            resources: [
+                .process("Resources")
+            ]
         ),
+        .binaryTarget(
+            name: "MSTTSFramework",
+            path: "./Sources/Frameworks/MicrosoftCognitiveServicesSpeech.xcframework"
+        )
     ]
 )
