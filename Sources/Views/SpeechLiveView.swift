@@ -23,8 +23,7 @@ public struct SpeechLiveView: View {
                 if let playingContent = ttsManager.playingContent {
                     SimpleSelectableText(
                         attributedText: playingContent.highlightedText()
-                    )
-                        .padding(.horizontal)
+                    ).padding(.horizontal)
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {

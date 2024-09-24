@@ -10,7 +10,6 @@ import SwiftUI
 
 public struct HLContent {
     let isDebuging: Bool
-    public var textColor: Color
     
     public let fullText: String
     public let allContent: [TTSContent]
@@ -30,7 +29,6 @@ public struct HLContent {
     
     public init(
         isDebuging: Bool = false,
-        textColor: Color = .black,
         allContent: [TTSContent],
         engine: TTSEngine,
         textOffset: Int = 0,
@@ -41,7 +39,6 @@ public struct HLContent {
         rowSpace: CGFloat = 8
     ) {
         self.isDebuging = isDebuging
-        self.textColor = textColor
         self.fullText = allContent.fullText
         self.allContent = allContent
         self.engine = engine
@@ -122,9 +119,9 @@ public struct HLContent {
         // 合并前后的文字
         var attributedString = before + selected + after
         #if os(iOS)
-        attributedString.uiKit.foregroundColor = UIColor(textColor)
+        attributedString.uiKit.foregroundColor = .label
         #elseif os(macOS)
-                
+        attributedString.appKit.foregroundColor = .labelColor
         #endif
         // 设置文字的行距
         let paragraphStyle = NSMutableParagraphStyle()
@@ -180,7 +177,6 @@ extension HLContent: Codable {
         
         // 以下属性不参与编码储存
         isDebuging = false
-        textColor = .black
     }
     
     public func encode(to encoder: Encoder) throws {

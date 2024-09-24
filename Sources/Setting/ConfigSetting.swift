@@ -9,7 +9,6 @@ import SwiftUI
 import AmosBase
 
 public struct ConfigSetting: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismissPage
     
     @State var config: TTSConfig
@@ -202,8 +201,7 @@ public struct ConfigSetting: View {
                         engine: config.speaker.language.engine,
                         config: config,
                         allContent: [newContent],
-                        showLive: isShowLive,
-                        textColor: colorScheme == .dark ? .white : .black
+                        showLive: isShowLive
                     )
                 } label: {
                     SimpleCell(

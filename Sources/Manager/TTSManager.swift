@@ -63,12 +63,10 @@ extension TTSManager {
         engine: TTSEngine,
         config: TTSConfig? = nil,
         allContent: [TTSContent],
-        showLive: Bool,
-        textColor: Color = .black
+        showLive: Bool
     ) {
         self.playingContent = HLContent(
             isDebuging: isDebuging,
-            textColor: textColor,
             allContent: allContent,
             engine: engine
         )
