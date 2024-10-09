@@ -19,13 +19,13 @@ public struct HLContent {
     public var wordLength: Int
     public var playWord: String
     
-    // 是否正在播放（控制播放按钮）
-    public var isPlaying: Bool
     // 是否跳过回车（微软 TTS 需要跳过）
     public let isSkipReturn: Bool
     
     public let fontSize: CGFloat
     public let rowSpace: CGFloat
+    
+    public let isHighLightWord: Bool
     
     public init(
         isDebuging: Bool = false,
@@ -34,9 +34,9 @@ public struct HLContent {
         textOffset: Int = 0,
         wordLength: Int = 0,
         playWord: String = .init(),
-        isPlaying: Bool = false,
         fontSize: CGFloat = 18,
-        rowSpace: CGFloat = 8
+        rowSpace: CGFloat = 8,
+        isHighLightWord: Bool = false
     ) {
         self.isDebuging = isDebuging
         self.fullText = allContent.fullText
@@ -45,90 +45,105 @@ public struct HLContent {
         self.textOffset = textOffset
         self.wordLength = wordLength
         self.playWord = playWord
-        self.isPlaying = isPlaying
         self.isSkipReturn = engine == .ms
         self.fontSize = fontSize
         self.rowSpace = rowSpace
+        self.isHighLightWord = isHighLightWord
     }
     
     public func highlightedText(
         options: String.CompareOptions = []
     ) -> AttributedString {
-        if isDebuging && (textOffset > 0 || wordLength > 0) {
-            debugPrint("- 高亮播放进度 -")
-            debugPrint("Total Text Count: \(fullText.count)")
-            debugPrint("Offset: \(textOffset)")
-            debugPrint("Length: \(wordLength)")
-            if let range = Range(
-                .init(
-                    location: textOffset,
-                    length: wordLength
-                ),
-                in: fullText
-            ) {
-                debugPrint("Select Word: \(fullText[range])")
+        if isHighLightWord {
+            var offSet = textOffset
+            // MS引擎选字需要计算回车和空格的数量并跳过
+            if isSkipReturn {
+                let returnCount = countNewLines(
+                    before: textOffset,
+                    in: fullText
+                )
+                if returnCount > 0 { offSet += (returnCount + 1) }
+                let spaceCount = countSpaces(
+                    before: textOffset,
+                    in: fullText
+                )
+                if spaceCount > 0 { offSet += spaceCount }
             }
-            debugPrint("Play Word: \(playWord)")
+            // 计算高亮的起始位置和结束位置
+            let endIndex = fullText.endIndex
+            let totalCount = fullText.count
+            let start = fullText.index(
+                fullText.startIndex,
+                offsetBy: min(offSet, totalCount),
+                limitedBy: endIndex
+            ) ?? endIndex
+            let end = fullText.index(
+                start,
+                offsetBy: min(wordLength, totalCount - offSet),
+                limitedBy: endIndex
+            ) ?? endIndex
+            
+            // 选择前的文字
+            let beforeText = String(fullText[..<start])
+            // 选择的文字
+            let selectedText = String(fullText[start..<end])
+            // 选择后的文字
+            let afterText = String(fullText[end...])
+            
+            // 转换为AttributedString
+            var before = AttributedString(beforeText)
+            var selected = AttributedString(selectedText)
+            var after = AttributedString(afterText)
+            
+            if isDebuging && (textOffset > 0 || wordLength > 0) {
+                debugPrint("- 高亮播放进度 -")
+                debugPrint("Total Text Count: \(fullText.count)")
+                debugPrint("Offset: \(offSet)")
+                debugPrint("Length: \(wordLength)")
+                debugPrint("Select Word: \(selected)")
+                debugPrint("Play Word: \(playWord)")
+            }
+            
+            // 设置文字显示的样式
+#if os(iOS)
+            before.uiKit.font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
+            selected.uiKit.backgroundColor = UIColor(Color.blue.opacity(0.3))
+            selected.uiKit.font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
+            after.uiKit.font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
+#elseif os(macOS)
+            before.appKit.font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
+            selected.appKit.backgroundColor = NSColor(Color.blue.opacity(0.3))
+            selected.appKit.font = NSFont.systemFont(ofSize: fontSize, weight: .bold)
+            after.appKit.font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
+#endif
+            
+            // 合并前后的文字
+            var attributedString = before + selected + after
+#if os(iOS)
+            attributedString.uiKit.foregroundColor = .label
+#elseif os(macOS)
+            attributedString.appKit.foregroundColor = .labelColor
+#endif
+            // 设置文字的行距
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = rowSpace
+            attributedString.paragraphStyle = paragraphStyle
+            
+            return attributedString
+        }else {
+            var fullString = AttributedString(fullText)
+#if os(iOS)
+            fullString.uiKit.font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
+            fullString.uiKit.foregroundColor = .label
+#elseif os(macOS)
+            fullString.appKit.font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
+            fullString.appKit.foregroundColor = .labelColor
+#endif
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = rowSpace
+            fullString.paragraphStyle = paragraphStyle
+            return fullString
         }
-        
-        var offSet = textOffset
-        // 计算有几个回车
-        if isSkipReturn {
-            let returnCount = countNewLines(
-                before: textOffset,
-                in: fullText
-            )
-            offSet += returnCount
-        }
-        // 计算高亮的起始位置和结束位置
-        let endIndex = fullText.endIndex
-        let totalCount = fullText.count
-        let start = fullText.index(
-            fullText.startIndex,
-            offsetBy: min(offSet, totalCount),
-            limitedBy: endIndex
-        ) ?? endIndex
-        let end = fullText.index(
-            start,
-            offsetBy: min(wordLength, totalCount - offSet),
-            limitedBy: endIndex
-        ) ?? endIndex
-        
-        // 选择前的文字
-        let beforeText = String(fullText[..<start])
-        // 选择的文字
-        let selectedText = String(fullText[start..<end])
-        // 选择后的文字
-        let afterText = String(fullText[end...])
-        
-        // 转换为AttributedString
-        var before = AttributedString(beforeText)
-        var selected = AttributedString(selectedText)
-        var after = AttributedString(afterText)
-        
-        // 设置文字显示的样式
-        #if os(iOS)
-        before.uiKit.font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
-        selected.uiKit.backgroundColor = UIColor(Color.blue.opacity(0.3))
-        selected.uiKit.font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
-        after.uiKit.font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
-        #elseif os(macOS)
-        
-        #endif
-        
-        // 合并前后的文字
-        var attributedString = before + selected + after
-        #if os(iOS)
-        attributedString.uiKit.foregroundColor = .label
-        #elseif os(macOS)
-        attributedString.appKit.foregroundColor = .labelColor
-        #endif
-        // 设置文字的行距
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = rowSpace
-        attributedString.paragraphStyle = paragraphStyle
-        
-        return attributedString
     }
     
     public func countNewLines(before textOffset: Int, in fullText: String) -> Int {
@@ -146,6 +161,22 @@ public struct HLContent {
 
         return newLinesCount
     }
+    
+    public func countSpaces(before textOffset: Int, in fullText: String) -> Int {
+        // 首先检查textOffset是否在字符串的有效范围内
+        guard textOffset >= 0 && textOffset <= fullText.count else {
+            return 0
+        }
+
+        // 获取到textOffset位置之前的子字符串
+        let index = fullText.index(fullText.startIndex, offsetBy: textOffset)
+        let substring = fullText[..<index]
+
+        // 计算子字符串中回车符的数量
+        let newLinesCount = substring.filter { $0 == " " }.count
+
+        return newLinesCount
+    }
 }
 
 extension HLContent: Codable {
@@ -156,10 +187,10 @@ extension HLContent: Codable {
         case textOffset
         case wordLength
         case playWord
-        case isPlaying
         case isSkipReturn
         case fontSize
         case rowSpace
+        case isHighLightWord
     }
     
     public init(from decoder: Decoder) throws {
@@ -170,10 +201,10 @@ extension HLContent: Codable {
         textOffset = try container.decode(Int.self, forKey: .textOffset)
         wordLength = try container.decode(Int.self, forKey: .wordLength)
         playWord = try container.decode(String.self, forKey: .playWord)
-        isPlaying = try container.decode(Bool.self, forKey: .isPlaying)
         isSkipReturn = try container.decode(Bool.self, forKey: .isSkipReturn)
         fontSize = try container.decode(CGFloat.self, forKey: .fontSize)
         rowSpace = try container.decode(CGFloat.self, forKey: .rowSpace)
+        isHighLightWord = try container.decode(Bool.self, forKey: .isHighLightWord)
         
         // 以下属性不参与编码储存
         isDebuging = false
@@ -187,9 +218,9 @@ extension HLContent: Codable {
         try container.encode(textOffset, forKey: .textOffset)
         try container.encode(wordLength, forKey: .wordLength)
         try container.encode(playWord, forKey: .playWord)
-        try container.encode(isPlaying, forKey: .isPlaying)
         try container.encode(isSkipReturn, forKey: .isSkipReturn)
         try container.encode(fontSize, forKey: .fontSize)
         try container.encode(rowSpace, forKey: .rowSpace)
+        try container.encode(isHighLightWord, forKey: .isHighLightWord)
     }
 }

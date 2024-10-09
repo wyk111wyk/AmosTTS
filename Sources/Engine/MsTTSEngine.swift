@@ -62,7 +62,7 @@ class MsTTSEngine {
     func play(
         for allContents: [TTSContent],
         defaultConfig: TTSConfig,
-        speechCallBack: @escaping (PlayStatus) -> Void
+        speechCallBack: @escaping (PlayStatus) throws -> Void
     ) {
         if isSpeaking {
             stop()
@@ -96,9 +96,9 @@ class MsTTSEngine {
                 let type = playableContents[index].type
                 if case let .pause(level) = type {
                     let pauseSign =
-"""
-<break time="\(level.pause())ms" />
-"""
+                    """
+                    <break time="\(level.pause())ms" />
+                    """
                     playableContents[index-1].speechText = playableContents[index-1].speechText + pauseSign
                     
                     // 删除停顿内容
@@ -116,7 +116,7 @@ class MsTTSEngine {
         _ allContents: [TTSContent],
         defaultConfig: TTSConfig,
         audioFileName: String? = nil,
-        speechCallBack: @escaping (PlayStatus) -> Void
+        speechCallBack: @escaping (PlayStatus) throws -> Void
     ) {
         debugPrint("微软TTS：开始播放")
         // 获取播放属性
@@ -184,19 +184,21 @@ class MsTTSEngine {
 //                let stream = try SPXAudioDataStream.init(from: result)
         } catch {
             debugPrint("播放发生错误:\(error)")
-            speechCallBack(.error(error: error))
+            try? speechCallBack(.error(error: error))
         }
     }
     
     private func attachAction(
         allContents: [TTSContent],
-        speechCallBack: @escaping (PlayStatus) -> Void
+        speechCallBack: @escaping (PlayStatus) throws -> Void
     ) {
         // 开始语音播放
         synthesizer.addSynthesisStartedEventHandler { _, evt in
-//            debugPrint("TTS语音播放 - 开始:\(evt.description)")
+            if self.isDebuging {
+                debugPrint("TTS语音播放 - 开始:\(evt.description)")
+            }
             self.isSpeaking = true
-            speechCallBack(.start)
+            try? speechCallBack(.start)
         }
         
         // 语音正在继续播放
@@ -209,7 +211,7 @@ class MsTTSEngine {
         synthesizer.addSynthesisCompletedEventHandler { _, _ in
             debugPrint("TTS语音播放 - 结束")
             self.isSpeaking = false
-            speechCallBack(.stop)
+            try? speechCallBack(.stop)
             self.totalPlayCount += allContents.reduce(0, { partialResult, cont in
                 partialResult + cont.speechText.count
             })
@@ -222,17 +224,15 @@ class MsTTSEngine {
                 fromCanceledSynthesisResult: evt.result
             )
             if self.isDebuging {
-                debugPrint("CANCELED: ErrorCode= \(cancellationDetails.errorCode.rawValue)")
-                debugPrint("CANCELED: ErrorDetails= \(cancellationDetails.errorDetails as String?)")
-                debugPrint("CANCELED: Did you update the subscription info?")
+                debugPrint("CANCELED: ErrorCode: \(cancellationDetails.errorCode.rawValue)")
+                debugPrint("CANCELED: ErrorDetails: \(cancellationDetails.errorDetails as String?)")
             }
             self.isSpeaking = false
-            speechCallBack(
+            try? speechCallBack(
                 .error(
                     error: SimpleError.customError(
-                        msg: (
-                            cancellationDetails.errorDetails as String?
-                        ).wrapped
+                        title: "播放被取消",
+                        msg: (cancellationDetails.errorDetails as String?).wrapped
                     )
                 )
             )
@@ -244,7 +244,7 @@ class MsTTSEngine {
             //            debugPrint("TTS - 正在播放：\(inputText)")
             //            debugPrint("text offset: \(evt.textOffset), word length: \(evt.wordLength)")
             //            self.isSpeaking = true
-            speechCallBack(
+            try? speechCallBack(
                 .play(
                     reading: (inputText, Int(evt.textOffset), Int(evt.wordLength))
                 )
@@ -312,10 +312,10 @@ extension MsTTSEngine {
             finalText += rateBottom
             finalText += voiceBottom
             
-            if isDebuging {
-                debugPrint("单独合成SSML：")
-                debugPrint(finalText)
-            }
+//            if isDebuging {
+//                debugPrint("单独合成SSML：")
+//                debugPrint(finalText)
+//            }
             
             return finalText
         case .pause(let level):
@@ -348,10 +348,10 @@ extension MsTTSEngine {
         
         let finalText = baseFront + text + baseBottom
         
-        if isDebuging {
-            debugPrint("最终组合的合成SSML：")
-            print(finalText)
-        }
+//        if isDebuging {
+//            debugPrint("最终组合的合成SSML：")
+//            print(finalText)
+//        }
         
         return finalText
     }

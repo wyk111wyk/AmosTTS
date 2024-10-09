@@ -21,8 +21,12 @@ public struct SpeechLiveView: View {
         NavigationStack {
             ScrollView(.vertical) {
                 if let playingContent = ttsManager.playingContent {
+                    let highLightString = Binding<AttributedString?> (
+                        get: {playingContent.highlightedText()}, set: {_ in}
+                    )
                     SimpleSelectableText(
-                        attributedText: playingContent.highlightedText()
+                        variedString: highLightString,
+                        isInScroll: true
                     ).padding(.horizontal)
                 }
             }
@@ -35,6 +39,7 @@ public struct SpeechLiveView: View {
                 dismissPage()
             }
         }
+        .simpleErrorToast(error: $ttsManager.occurError)
     }
     
     @ViewBuilder
@@ -59,7 +64,7 @@ public struct SpeechLiveView: View {
                 controlButton()
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(isSpeaking ? "正在播放" : "点击播放")
+                        Text(ttsManager.isPlaying == true ? "正在播放" : "点击播放")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                         if isMSTTSReady {
@@ -73,8 +78,10 @@ public struct SpeechLiveView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-                    ProgressView(value: playingContent.textOffset.toDouble,
-                                 total: playingContent.fullText.count.toDouble)
+                    ProgressView(
+                        value: playingContent.textOffset.toDouble,
+                        total: playingContent.fullText.count.toDouble
+                    )
                         .progressViewStyle(.linear)
                 }
             }
@@ -92,12 +99,8 @@ public struct SpeechLiveView: View {
 extension SpeechLiveView {
     private var isMSTTSReady: Bool {
         ttsManager.playingContent?.engine == .ms &&
-        ttsManager.playingContent?.isPlaying == false &&
+        ttsManager.isPlaying == false &&
         ttsManager.playingContent?.wordLength == 0
-    }
-    
-    private var isSpeaking: Bool {
-        ttsManager.playingContent?.isPlaying == true
     }
     
     private func play() {
@@ -117,7 +120,12 @@ extension SpeechLiveView {
         if ttsManager.playingContent?.engine == .system {
             // 系统TTS控制
             HStack(spacing: 15) {
-                if ttsManager.systemTTS.systemSynthesizer.isPaused {
+                if ttsManager.isPlaying == false {
+                    // 停止时
+                    Button(action: play, label: {
+                        playButton()
+                    }).buttonStyle(.plain)
+                }else if ttsManager.systemTTS.systemSynthesizer.isPaused {
                     // 暂停时
                     Button(action: play, label: {
                         playButton()
@@ -125,7 +133,7 @@ extension SpeechLiveView {
                     Button(action: stop, label: {
                         stopButton()
                     }).buttonStyle(.plain)
-                }else if ttsManager.systemTTS.systemSynthesizer.isSpeaking {
+                }else {
                     // 播放时
                     Button(action: pause, label: {
                         pauseButton()
@@ -133,16 +141,17 @@ extension SpeechLiveView {
                     Button(action: stop, label: {
                         stopButton()
                     }).buttonStyle(.plain)
-                }else {
-                    // 停止时
-                    Button(action: play, label: {
-                        playButton()
-                    }).buttonStyle(.plain)
                 }
             }
         }else {
             // 微软TTS控制
-            if isSpeaking {
+            if ttsManager.isPlaying == nil {
+                Button(action: stop, label: {
+                    loadingButton()
+                })
+                .buttonStyle(.plain)
+                .disabled(true)
+            }else if ttsManager.isPlaying == true {
                 Button(action: stop, label: {
                     stopButton()
                 }).buttonStyle(.plain)
@@ -196,5 +205,5 @@ extension SpeechLiveView {
 }
 
 #Preview {
-    SpeechLiveView(ttsManager: .init())
+    SpeechLiveView(ttsManager: TTSManager())
 }

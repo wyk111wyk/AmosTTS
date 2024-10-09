@@ -26,20 +26,28 @@ public final class TTSManager: @unchecked Sendable {
     public var defaultConfig: TTSConfig {
         if let savedConfig = savedDefaultConfig?.decode(type: TTSConfig.self) {
             savedConfig
-        } else {
-            TTSConfig()
-        }
+        } else { TTSConfig() }
+    }
+    public var defaultSystemConfig: TTSConfig {
+        if let savedConfig = savedDefaultConfig?.decode(type: TTSConfig.self) {
+            savedConfig
+        } else { TTSConfig.system }
     }
     
     public var showLiveSpeechPage: Bool = false
-    public var errorMsg: String? = nil
+    public var occurError: Error? = nil
     
+    // 当该值为nil，代表微软TTS正在载入
+    public var isPlaying: Bool? = nil
     let isDebuging: Bool
+    // 当开始播放的时候赋值，重复播放时调用
+    var currentConfig: TTSConfig? = nil
     
     public init(
         sub: String = "",
         region: String = "",
-        isDebuging: Bool = false
+        isDebuging: Bool = false,
+        defaultConfig: TTSConfig? = nil
     ) {
         self.isDebuging = isDebuging
         
@@ -48,7 +56,7 @@ public final class TTSManager: @unchecked Sendable {
         
         if isPreviewCondition {
             playingContent = HLContent(
-                allContent: [.example(.chineseAndEngish)],
+                allContent: [.example(.chinesePoem)],
                 engine: .system
             )
         }
@@ -59,36 +67,59 @@ public final class TTSManager: @unchecked Sendable {
 extension TTSManager {
     // 统一播放的入口
     // 1. 系统TTS 2.默认设置 3.分别播放设置
+    // 注意：系统TTS仅使用默认设置，会忽略Content的单独设置
     public func playContents(
         engine: TTSEngine,
         config: TTSConfig? = nil,
         allContent: [TTSContent],
-        showLive: Bool
-    ) {
+        showLive: Bool,
+        isHighLightWord: Bool = false
+    ) throws {
+        self.currentConfig = config
         self.playingContent = HLContent(
             isDebuging: isDebuging,
             allContent: allContent,
-            engine: engine
+            engine: engine,
+            isHighLightWord: isHighLightWord
         )
-        
         switch engine {
         case .system:
             systemTTS.play(
                 for: allContent,
-                defaultConfig: config ?? defaultConfig
+                defaultConfig: config ?? defaultSystemConfig
             ) { playStatus in
-                self.updatePlayLive(playStatus)
+                try self.updatePlayLive(playStatus)
             }
         case .ms:
-            guard let msTTS else { return }
+            guard let msTTS else {
+                throw SimpleError.customError(title: "播放错误", msg: "引擎没有初始化")
+            }
             msTTS.play(
                 for: allContent,
                 defaultConfig: config ?? defaultConfig
             ) { playStatus in
-                self.updatePlayLive(playStatus)
+                try self.updatePlayLive(playStatus)
             }
         }
         
+        /*
+         播放的同时出现播放进度页面
+         需要在root页面放置sheet：
+         
+         @State var ttsManager = TTSManager(
+             sub: MS_SUB,
+             region: MS_REGION,
+             isDebuging: false
+         )
+         
+         .sheet(
+             isPresented: $ttsManager.showLiveSpeechPage,
+             onDismiss: {
+                 ttsManager.stopSpeech()
+             }) {
+             SpeechLiveView(ttsManager: ttsManager)
+         }
+        */
         if showLive {
             if engine == .system {
                 showLiveSpeechPage = true
@@ -98,27 +129,38 @@ extension TTSManager {
         }
     }
     
-    private func updatePlayLive(_ playStatus: PlayStatus) {
+    private func updatePlayLive(
+        _ playStatus: PlayStatus
+    ) throws {
         switch playStatus {
         case .start:
-            self.playOffset = 0
-            self.playingContent?.isPlaying = true
+            if isDebuging {
+                debugPrint("开始播放：\(playingContent?.engine.title ?? "N/A")")
+            }
+            DispatchQueue.main.async {
+                self.playOffset = 0
+                self.isPlaying = true
+            }
         case .play(let reading):
-            if self.playingContent?.isPlaying == true {
-                self.playingContent?.playWord = reading.word
-                self.playingContent?.wordLength = reading.length
-                if self.playingContent?.engine == .system {
-                    self.playingContent?.textOffset = reading.offset
-                }else {
-                    self.playingContent?.textOffset = self.playOffset
-                    self.playOffset += reading.length
+            DispatchQueue.main.async {
+                if self.isPlaying == true {
+                    self.playingContent?.playWord = reading.word
+                    self.playingContent?.wordLength = reading.length
+                    if self.playingContent?.engine == .system {
+                        self.playingContent?.textOffset = reading.offset
+                    }else {
+                        self.playingContent?.textOffset = self.playOffset
+                        self.playOffset += reading.length
+                    }
                 }
             }
         case .stop:
             debugPrint("停止播放：\(playingContent?.engine.title ?? "N/A")")
             self.resetSpeech()
         case .error(let error):
-            self.errorMsg = error.localizedDescription
+            self.occurError = error
+            self.resetSpeech()
+            throw error
         default: break
         }
     }
@@ -164,11 +206,13 @@ extension TTSManager {
     
     public func resetSpeech() {
         debugPrint("重置播放进度的展示")
-        self.playingContent?.playWord = .init()
-        self.playingContent?.textOffset = 0
-        self.playingContent?.wordLength = 0
-        self.playOffset = 0
-        self.playingContent?.isPlaying = false
+        DispatchQueue.main.async {
+            self.playingContent?.playWord = ""
+            self.playingContent?.textOffset = 0
+            self.playingContent?.wordLength = 0
+            self.playOffset = 0
+            self.isPlaying = false
+        }
     }
     
     /// 只有系统TTS支持暂停
@@ -177,7 +221,10 @@ extension TTSManager {
             systemTTS.systemSynthesizer.pauseSpeaking(at: .word)
         }else {
             guard let msTTS else { return }
-            msTTS.stop()
+            DispatchQueue.main.async {
+                msTTS.stop()
+                self.isPlaying = nil
+            }
         }
     }
     
@@ -185,8 +232,9 @@ extension TTSManager {
         if systemTTS.systemSynthesizer.isPaused {
             systemTTS.systemSynthesizer.continueSpeaking()
         }else if let playingContent {
-            playContents(
+            try? playContents(
                 engine: playingContent.engine,
+                config: currentConfig,
                 allContent: playingContent.allContent,
                 showLive: false
             )
@@ -194,11 +242,20 @@ extension TTSManager {
     }
     
     public func stopSpeech() {
-        if systemTTS.systemSynthesizer.isSpeaking {
-            systemTTS.systemSynthesizer.stopSpeaking(at: .word)
+        if isDebuging {
+            debugPrint("用户停止播放")
+        }
+        if systemTTS.systemSynthesizer.isSpeaking || systemTTS.systemSynthesizer.isPaused {
+            DispatchQueue.main.async {
+                self.systemTTS.systemSynthesizer.stopSpeaking(at: .immediate)
+                self.resetSpeech()
+            }
         }else {
             guard let msTTS else { return }
-            msTTS.stop()
+            DispatchQueue.main.async {
+                msTTS.stop()
+                self.isPlaying = nil
+            }
         }
     }
     
@@ -221,7 +278,7 @@ extension TTSManager {
         )
         
         // 直接播放
-        playContents(
+        try? playContents(
             engine: speaker.language == .system ? .system : .ms,
             allContent: [content],
             showLive: false

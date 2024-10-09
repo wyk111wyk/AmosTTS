@@ -14,7 +14,7 @@ extension AVSpeechSynthesizer: @unchecked @retroactive Sendable {}
 
 class SystemTTSEngine: NSObject, @unchecked Sendable {
     let systemSynthesizer = AVSpeechSynthesizer()
-    var speechCallBack: (PlayStatus) -> Void = {_ in}
+    var speechCallBack: (PlayStatus) throws -> Void = {_ in}
     
     override init() {}
     
@@ -22,7 +22,7 @@ class SystemTTSEngine: NSObject, @unchecked Sendable {
     func play(
         for allContent: [TTSContent],
         defaultConfig: TTSConfig,
-        speechCallBack: @escaping (PlayStatus) -> Void
+        speechCallBack: @escaping (PlayStatus) throws -> Void
     ) {
         if systemSynthesizer.isSpeaking {
             systemSynthesizer.stopSpeaking(at: .word)
@@ -34,7 +34,6 @@ class SystemTTSEngine: NSObject, @unchecked Sendable {
             
             let allText: String = allContent.fullText
             
-            let utterance = AVSpeechUtterance(string: allText)
             
             // Configure the utterance.
             var baseRate: Float = 0.53
@@ -47,6 +46,8 @@ class SystemTTSEngine: NSObject, @unchecked Sendable {
             }
             
             baseRate = defaultConfig.wrappedRate.toFloat
+            
+            let utterance = AVSpeechUtterance(string: allText)
             utterance.rate = baseRate
             utterance.postUtteranceDelay = 0.5
             utterance.volume = 1.0
@@ -62,22 +63,22 @@ extension SystemTTSEngine: AVSpeechSynthesizerDelegate {
     // 开始播放
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         debugPrint("TTS - 开始播放")
-        self.speechCallBack(.start)
+        try? self.speechCallBack(.start)
     }
     // 暂停播放
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didPause utterance: AVSpeechUtterance) {
         debugPrint("TTS - 暂停播放")
-        self.speechCallBack(.pause)
+        try? self.speechCallBack(.pause)
     }
     // 取消播放
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         debugPrint("TTS - 取消播放")
-        self.speechCallBack(.stop)
+        try? self.speechCallBack(.stop)
     }
     // 停止播放
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         debugPrint("TTS - 停止播放")
-        self.speechCallBack(.stop)
+        try? self.speechCallBack(.stop)
     }
     // 继续播放
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didContinue utterance: AVSpeechUtterance) {
@@ -87,7 +88,7 @@ extension SystemTTSEngine: AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
         let fullText = utterance.speechString as NSString
         let subString = fullText.substring(with: characterRange)
-        self.speechCallBack(
+        try? self.speechCallBack(
             .play(
                 reading: (
                     String(subString).firstCharacters(count: 8),
@@ -97,7 +98,7 @@ extension SystemTTSEngine: AVSpeechSynthesizerDelegate {
             )
         )
         
-        let resultText = String(subString)
-        debugPrint("TTS - 播放: \(resultText) (\(characterRange.location), \(characterRange.length))")
+//        let resultText = String(subString)
+//        debugPrint("TTS - 播放: \(resultText) (\(characterRange.location), \(characterRange.length))")
     }
 }

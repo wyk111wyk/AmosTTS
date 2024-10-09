@@ -77,6 +77,8 @@ public struct TTSSpeaker {
 extension TTSSpeaker: Codable, Equatable, Identifiable, Sendable {
     public static let xiaomo: TTSSpeaker = .init(region: "zh-CN", language: .cn, sublanguage: "普通话，简体", gender: .female, audioName: "zh-CN-XiaomoNeural", speakerName: "晓墨", speakerIntro: "清晰、放松的声音，具有丰富的角色扮演和情感，适合音频书籍。", style: "affectionate&angry&calm&cheerful&depressed&disgruntled&embarrassed&envious&fearful&gentle&sad&serious", role: "Boy&Girl&OlderAdultFemale&OlderAdultMale&SeniorFemale&SeniorMale&YoungAdultFemale&YoungAdultMale")
     
+    public static let xiaoxiao: TTSSpeaker = .init(region: "zh-CN", language: .cn, sublanguage: "普通话，简体", gender: .female, audioName: "zh-CN-XiaoxiaoNeural", speakerName: "晓晓", speakerIntro: "活泼、温暖的声音，具有多种场景风格和情感。", style: "affectionate&angry&assistant&calm&chat&cheerful&customerservice&disgruntled&fearful&friendly&gentle&lyrical&newscast&poetry-reading&sad&serious", role: "")
+    
     // 系统离线TTS引擎
     public static let systemTTSEngine: TTSSpeaker = .init(region: "zh-CN", language: .system, sublanguage: "", gender: .female, audioName: "systemTTSEngine", speakerName: "系统自带引擎", speakerIntro: "系统合成语音，质量较差但无需联网", style: "", role: "")
     

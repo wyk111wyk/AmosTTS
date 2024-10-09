@@ -63,6 +63,16 @@ public struct TTSConfig: Codable, Identifiable, Sendable {
     }
 }
 
+extension TTSConfig {
+    public static var system: TTSConfig {
+        TTSConfig(speaker: .systemTTSEngine, rate: -9)
+    }
+    
+    public static var poem: TTSConfig {
+        TTSConfig(speaker: .xiaoxiao, style: .poemStyle)
+    }
+}
+
 extension TTSConfig: Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.speaker == rhs.speaker &&

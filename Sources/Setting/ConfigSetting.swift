@@ -21,10 +21,12 @@ public struct ConfigSetting: View {
     @Bindable var ttsManager: TTSManager
     @State private var isShowLive = true
     
-    public init(ttsManager: TTSManager,
-         config: TTSConfig,
-         useDefaultConfig: Bool? = nil,
-         saveAvtion: @escaping (TTSConfig?) -> Void = {_ in}) {
+    public init(
+        ttsManager: TTSManager,
+        config: TTSConfig,
+        useDefaultConfig: Bool? = nil,
+        saveAvtion: @escaping (TTSConfig?) -> Void = {_ in}
+    ) {
         self.ttsManager = ttsManager
         self._config = State(initialValue: config)
         self.saveAvtion = saveAvtion
@@ -197,7 +199,7 @@ public struct ConfigSetting: View {
                     let newContent = TTSContent(
                         speechText: testText.content
                     )
-                    ttsManager.playContents(
+                    try? ttsManager.playContents(
                         engine: config.speaker.language.engine,
                         config: config,
                         allContent: [newContent],
