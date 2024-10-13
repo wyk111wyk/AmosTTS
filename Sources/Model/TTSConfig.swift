@@ -71,6 +71,11 @@ extension TTSConfig {
     public static var poem: TTSConfig {
         TTSConfig(speaker: .xiaoxiao, style: .poemStyle)
     }
+    
+    // zh-CN-XiaoxiaoNeural
+    public var tagName: String {
+        speaker.audioName
+    }
 }
 
 extension TTSConfig: Equatable {

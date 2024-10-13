@@ -35,6 +35,7 @@ public final class TTSManager: @unchecked Sendable {
     }
     
     public var showLiveSpeechPage: Bool = false
+    public var showSpeechBar: Bool = false
     public var occurError: Error? = nil
     
     // 当该值为nil，代表微软TTS正在载入
@@ -72,7 +73,8 @@ extension TTSManager {
         engine: TTSEngine,
         config: TTSConfig? = nil,
         allContent: [TTSContent],
-        showLive: Bool,
+        showLive: Bool = false,
+        showLiveBar: Bool = false,
         isHighLightWord: Bool = false
     ) throws {
         self.currentConfig = config
@@ -126,6 +128,12 @@ extension TTSManager {
             }else if (engine == .ms && msTTS != nil) {
                 showLiveSpeechPage = true
             }
+        }else if showLiveBar {
+            if engine == .system {
+                showSpeechBar = true
+            }else if (engine == .ms && msTTS != nil) {
+                showSpeechBar = true
+            }
         }
     }
     
@@ -158,8 +166,10 @@ extension TTSManager {
             debugPrint("停止播放：\(playingContent?.engine.title ?? "N/A")")
             self.resetSpeech()
         case .error(let error):
-            self.occurError = error
-            self.resetSpeech()
+            DispatchQueue.main.async {
+                self.occurError = error
+                self.resetSpeech()
+            }
             throw error
         default: break
         }
@@ -168,9 +178,10 @@ extension TTSManager {
     /// 保存为音频文件（不播放）
     public func outputContents(
         for allContent: [TTSContent],
+        config: TTSConfig? = nil,
         saveName: String
-    ) async -> URL? {
-        await withCheckedContinuation { continuation in
+    ) async throws -> URL? {
+        try await withCheckedThrowingContinuation { continuation in
             let fileHelper = SimpleFileHelper()
             
             guard !fileHelper.fileExists(saveName) else {
@@ -185,14 +196,14 @@ extension TTSManager {
             
             msTTS.synthesisToSpeaker(
                 allContent,
-                defaultConfig: defaultConfig,
+                defaultConfig: config ?? defaultConfig,
                 audioFileName: saveName
             ) { playStatus in
                 switch playStatus {
                 case .stop:
                     continuation.resume(returning: fileHelper.filePath(saveName))
-                case .error:
-                    continuation.resume(returning: nil)
+                case .error(let error):
+                    continuation.resume(throwing: error)
                 default: break
                 }
             }
