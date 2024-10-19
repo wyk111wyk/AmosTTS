@@ -13,9 +13,11 @@ public struct SpeechLiveBar: View {
     let showDismissButton: Bool
     let hasShadow: Bool
     
+    @State private var isDismissButtonOn: Bool = false
+    
     public init(
         ttsManager: TTSManager = .init(),
-        showDismissButton: Bool = false,
+        showDismissButton: Bool = true,
         hasShadow: Bool = false
     ) {
         self.ttsManager = ttsManager
@@ -25,6 +27,9 @@ public struct SpeechLiveBar: View {
     
     public var body: some View {
         controlBar()
+            .onDisappear {
+                stop()
+            }
     }
 }
 
@@ -70,12 +75,14 @@ extension SpeechLiveBar {
                     }
                 }
                 
-                if showDismissButton {
+                if showDismissButton && isDismissButtonOn {
                     HStack {
                         Spacer()
                         Button {
                             ttsManager.stopSpeech()
-                            ttsManager.showSpeechBar = false
+                            withAnimation {
+                                ttsManager.showSpeechBar = false
+                            }
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "xmark")
@@ -87,7 +94,8 @@ extension SpeechLiveBar {
                     }
                 }
             }
-            .padding()
+            .padding(.top)
+            .padding(.horizontal)
         }
     }
     
@@ -99,14 +107,23 @@ extension SpeechLiveBar {
     
     private func play() {
         ttsManager.continueSpeech()
+        withAnimation {
+            isDismissButtonOn = false
+        }
     }
     
     private func pause() {
         ttsManager.pauseSpeech()
+        withAnimation {
+            isDismissButtonOn = true
+        }
     }
     
     private func stop() {
         ttsManager.stopSpeech()
+        withAnimation {
+            isDismissButtonOn = true
+        }
     }
     
     @ViewBuilder

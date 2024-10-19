@@ -9,6 +9,8 @@ import Foundation
 import SwiftUI
 import AmosBase
 
+public typealias _TTSManager = TTSManager
+
 @Observable
 public final class TTSManager: @unchecked Sendable {
     @ObservationIgnored
@@ -129,10 +131,12 @@ extension TTSManager {
                 showLiveSpeechPage = true
             }
         }else if showLiveBar {
-            if engine == .system {
-                showSpeechBar = true
-            }else if (engine == .ms && msTTS != nil) {
-                showSpeechBar = true
+            withAnimation {
+                if engine == .system {
+                    showSpeechBar = true
+                }else if (engine == .ms && msTTS != nil) {
+                    showSpeechBar = true
+                }
             }
         }
     }

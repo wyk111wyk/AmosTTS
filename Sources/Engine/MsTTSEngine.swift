@@ -348,10 +348,10 @@ extension MsTTSEngine {
         
         let finalText = baseFront + text + baseBottom
         
-//        if isDebuging {
-//            debugPrint("最终组合的合成SSML：")
-//            print(finalText)
-//        }
+        if isDebuging {
+            debugPrint("最终组合的合成SSML：")
+            print(finalText)
+        }
         
         return finalText
     }
