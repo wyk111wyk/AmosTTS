@@ -62,6 +62,7 @@ class MsTTSEngine {
     func play(
         for allContents: [TTSContent],
         defaultConfig: TTSConfig,
+        audioFomat: SPXSpeechSynthesisOutputFormat = .audio24Khz48KBitRateMonoMp3,
         speechCallBack: @escaping (PlayStatus) throws -> Void
     ) {
         if isSpeaking {
@@ -70,6 +71,7 @@ class MsTTSEngine {
             synthesisToSpeaker(
                 combineContents(for: allContents),
                 defaultConfig: defaultConfig,
+                audioFomat: audioFomat,
                 speechCallBack: speechCallBack
             )
         }
@@ -116,6 +118,7 @@ class MsTTSEngine {
         _ allContents: [TTSContent],
         defaultConfig: TTSConfig,
         audioFileName: String? = nil,
+        audioFomat: SPXSpeechSynthesisOutputFormat,
         speechCallBack: @escaping (PlayStatus) throws -> Void
     ) {
         debugPrint("微软TTS：开始播放")
@@ -128,15 +131,15 @@ class MsTTSEngine {
 //                speechConfig?.speechSynthesisLanguage = config.speaker.region
 //                speechConfig?.speechSynthesisVoiceName = config.speaker.audioName
 //            }
-        // riff24Khz16BitMonoPcm 格式的比特率为 384 kbps
+        // riff16Khz16BitMonoPcm 格式的比特率为 384 kbps
         // audio24Khz48KBitRateMonoMp3 的比特率仅为 48 kbps
-        speechConfig?.setSpeechSynthesisOutputFormat(.riff16Khz16BitMonoPcm)
+        speechConfig?.setSpeechSynthesisOutputFormat(audioFomat)
         
         do {
             // 创建播放合成器
             var audioConfig: SPXAudioConfiguration
             if let audioFileName,
-               let fileUrl = SimpleFileHelper().filePath(audioFileName) {
+               let fileUrl = SimpleFileHelper().filePath(audioFileName, suffix: "mp3") {
                 audioConfig = try SPXAudioConfiguration(wavFileOutput: fileUrl.path())
                 if isDebuging {
                     debugPrint("储存 wav 的文件地址:\(fileUrl)")

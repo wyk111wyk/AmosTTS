@@ -201,7 +201,8 @@ extension TTSManager {
             msTTS.synthesisToSpeaker(
                 allContent,
                 defaultConfig: config ?? defaultConfig,
-                audioFileName: saveName
+                audioFileName: saveName,
+                audioFomat: .audio24Khz48KBitRateMonoMp3
             ) { playStatus in
                 switch playStatus {
                 case .stop:

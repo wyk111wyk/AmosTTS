@@ -12,6 +12,7 @@ public struct SpeechBlock: View {
     @Bindable var ttsManager: TTSManager
     @Binding var content: TTSContent
     
+    @FocusState var focused: Bool
     let isFocused: Bool
     
     public init(
@@ -46,9 +47,12 @@ public struct SpeechBlock: View {
     private func textFieldCell() -> some View {
         SimpleTextField(
             $content.speechText,
-            tintColor: .accentColor,
-            isFocused: isFocused
+            tintColor: .accentColor
         )
+        .focused($focused)
+        .onAppear {
+            focused = isFocused
+        }
     }
     
     private func customizedCell() -> some View {

@@ -27,6 +27,11 @@ public struct SpeechLiveBar: View {
     
     public var body: some View {
         controlBar()
+            .onChange(of: ttsManager.isPlaying) {
+                withAnimation {
+                    isDismissButtonOn = (ttsManager.isPlaying != true)
+                }
+            }
             .onDisappear {
                 stop()
             }
