@@ -93,7 +93,9 @@ extension SpeechLiveBar {
                                 Image(systemName: "xmark")
                                 Text("关闭")
                             }
+                            #if os(iOS)
                             .simpleTag(.border(verticalPad: 4, horizontalPad: 8, cornerRadius: 15, contentColor: .secondary))
+                            #endif
                         }
                         .padding(.trailing, 6)
                     }
@@ -223,17 +225,10 @@ extension SpeechLiveBar {
 #Preview {
     @Previewable @State var tts = TTSManager()
     NavigationStack {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                Text("Hello world")
-                Spacer()
-            }
-            Spacer()
-        }
-        .overlay(alignment: .top) {
+        VStack(spacing: 20) {
             SpeechLiveBar(ttsManager: tts, showDismissButton: true, hasShadow: true)
+            
+            Text("Hello world")
         }
     }
 }
