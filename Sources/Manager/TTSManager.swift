@@ -194,7 +194,8 @@ extension TTSManager {
             }
             
             guard let msTTS else {
-                continuation.resume(returning: nil)
+                let error = SimpleError.customError(title: "生成音频文件失败", msg: "音频引擎没有成功初始化")
+                continuation.resume(throwing: error)
                 return
             }
             
@@ -206,7 +207,17 @@ extension TTSManager {
             ) { playStatus in
                 switch playStatus {
                 case .stop:
-                    continuation.resume(returning: fileHelper.filePath(saveName))
+                    let error = SimpleError.customError(title: "生成音频文件失败", msg: "请确保网络环境后重试")
+                    if let filePath = fileHelper.filePath(saveName, isCreateWhenEmpty: false) {
+                        if let data = try? Data(contentsOf: filePath), data.count > 0 {
+                            continuation.resume(returning: filePath)
+                        }else {
+                            fileHelper.deleteFile(filePath)
+                            continuation.resume(throwing: error)
+                        }
+                    }else {
+                        continuation.resume(throwing: error)
+                    }
                 case .error(let error):
                     continuation.resume(throwing: error)
                 default: break

@@ -36,6 +36,14 @@ public struct SpeechLiveBar: View {
                 stop()
             }
     }
+    
+    @MainActor
+    private func dismissBar() {
+        ttsManager.stopSpeech()
+        withAnimation {
+            ttsManager.showSpeechBar = false
+        }
+    }
 }
 
 extension SpeechLiveBar {
@@ -56,10 +64,12 @@ extension SpeechLiveBar {
                             }
                             Text(playingContent.playWord)
                                 .foregroundStyle(.primary)
+                                .layoutPriority(1)
                             Spacer()
                             Text("\(playingContent.textOffset) / \(playingContent.fullText.count)")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
+                                .layoutPriority(2)
                         }
                         ProgressView(
                             value: playingContent.textOffset.toDouble,
@@ -84,10 +94,7 @@ extension SpeechLiveBar {
                     HStack {
                         Spacer()
                         Button {
-                            ttsManager.stopSpeech()
-                            withAnimation {
-                                ttsManager.showSpeechBar = false
-                            }
+                            dismissBar()
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "xmark")

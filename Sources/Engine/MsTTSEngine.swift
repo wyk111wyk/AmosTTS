@@ -142,7 +142,7 @@ class MsTTSEngine {
                let fileUrl = SimpleFileHelper().filePath(audioFileName, suffix: "mp3") {
                 audioConfig = try SPXAudioConfiguration(wavFileOutput: fileUrl.path())
                 if isDebuging {
-                    debugPrint("储存 wav 的文件地址:\(fileUrl)")
+                    debugPrint("储存音频文件的地址:\(fileUrl)")
                 }
             }else {
                 audioConfig = SPXAudioConfiguration()
