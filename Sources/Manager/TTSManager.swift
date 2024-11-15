@@ -216,9 +216,13 @@ extension TTSManager {
                             continuation.resume(throwing: error)
                         }
                     }else {
+                        // 找不到音频文件地址
                         continuation.resume(throwing: error)
                     }
                 case .error(let error):
+                    if let filePath = fileHelper.filePath(saveName, isCreateWhenEmpty: false) {
+                        fileHelper.deleteFile(filePath)
+                    }
                     continuation.resume(throwing: error)
                 default: break
                 }
