@@ -67,7 +67,7 @@ extension SpeechLiveBar {
                                 .layoutPriority(1)
                             Spacer()
                             Text("\(playingContent.textOffset) / \(playingContent.fullText.count)")
-                                .font(.footnote)
+                                .font(.footnote.monospacedDigit())
                                 .foregroundStyle(.secondary)
                                 .layoutPriority(2)
                         }
