@@ -10,6 +10,8 @@ import SwiftUI
 import AmosBase
 import MicrosoftCognitiveServicesSpeech
 
+// https://docs.azure.cn/zh-cn/?product=popular
+
 class MsTTSEngine {
     @AppStorage("TotalPlayCount") private var totalPlayCount: Int = 0
     

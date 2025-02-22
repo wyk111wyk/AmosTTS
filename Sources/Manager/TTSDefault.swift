@@ -11,7 +11,6 @@ import SwiftUI
 extension SimpleDefaults.Keys {
     // 统计已使用的字数
     static let totalPlayedWord = Key<Int>("TTS_TotalPlayedWord", default: 0, iCloud: true)
-    
     static let defaultConfig = Key<TTSConfig?>("TTS_DefaultConfig", iCloud: true)
 }
 
