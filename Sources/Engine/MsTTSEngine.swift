@@ -15,8 +15,6 @@ import MicrosoftCognitiveServicesSpeech
 class MsTTSEngine {
     @AppStorage("TotalPlayCount") private var totalPlayCount: Int = 0
     
-    var sub: String!
-    var region: String!
     var synthesizer = SPXSpeechSynthesizer()
     var speechConfig: SPXSpeechConfiguration?
     
@@ -24,28 +22,29 @@ class MsTTSEngine {
     var isSpeaking: Bool = false
     
     // MARK: - Initialization
-    init?(
-        sub: String,
-        region: String,
+    init(
         isDebuging: Bool = false
     ) {
-        //        sub = "89b56f435e4b4586bf98288c2318aa59"
-        //        region = "eastaisa"
-        //        sub = "f54b518a21c74ef09e26fd6f1b9fa9af"
-        //        region = "eastus"
-        
-        guard sub.isNotEmpty && region.isNotEmpty else {
-            return nil
-        }
-        
+        self.isDebuging = isDebuging
+        initSpeechConfig()
+    }
+    
+    private func initSpeechConfig() {
+        guard let key = key else { return }
         do {
-            try speechConfig = SPXSpeechConfiguration(subscription: sub, region: region)
+            try speechConfig = SPXSpeechConfiguration(subscription: key, region: "eastus")
         } catch {
             debugPrint("MsTTS Config 初始化错误: \(error)")
-            return nil
         }
-        
-        self.isDebuging = isDebuging
+    }
+    
+    private var cryptoKey: String {
+        "KZ3teSj9WXufJconjBuO0KX5++N40Li+XKbeDzvf05uTxr43qdAxjuYO3AhyaDK/"
+    }
+    
+    private var key: String? {
+        let crypto = SimpleAESCrypto(key: publicKey, iv: publicIV)
+        return try? crypto.decrypt(encryptedText: cryptoKey)
     }
     
     // MARK: Method
