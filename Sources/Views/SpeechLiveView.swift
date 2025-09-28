@@ -39,7 +39,7 @@ public struct SpeechLiveView: View {
                 dismissPage()
             }
         }
-        .simpleErrorToast(error: $ttsManager.occurError)
+        .simpleErrorBanner(error: $ttsManager.occurError)
     }
     
     @ViewBuilder

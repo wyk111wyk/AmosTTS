@@ -54,7 +54,7 @@ public final class TTSManager: @unchecked Sendable {
     ) {
         self.isDebuging = isDebuging
         
-        self.msTTS = MsTTSEngine(sub: sub, region: region, isDebuging: isDebuging)
+        self.msTTS = MsTTSEngine(isDebuging: isDebuging)
         self.systemTTS = SystemTTSEngine()
         
         if isPreviewCondition {

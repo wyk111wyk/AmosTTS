@@ -79,37 +79,43 @@ extension SpeechLiveBar {
                     }
                 }
                 .padding()
-                .background {
-                    if hasShadow {
-                        RoundedRectangle(cornerRadius: 8)
-                            .foregroundStyle(.regularMaterial)
-                            .shadow(radius: 5)
-                    }else {
-                        RoundedRectangle(cornerRadius: 8)
-                            .foregroundStyle(.regularMaterial)
-                    }
-                }
+                .contentBackground(verticalPadding: 0, horizontalPadding: 0, cornerRadius: 8)
                 
                 if showDismissButton && isDismissButtonOn {
-                    HStack {
-                        Spacer()
-                        Button {
-                            dismissBar()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "xmark")
-                                Text("关闭")
-                            }
-                            #if os(iOS)
-                            .simpleTag(.border(verticalPad: 4, horizontalPad: 8, cornerRadius: 15, contentColor: .secondary))
-                            #endif
-                        }
-                        .padding(.trailing, 6)
-                    }
+                    dismissButton()
                 }
             }
             .padding(.top)
             .padding(.horizontal)
+        }
+    }
+    
+    private func dismissButton() -> some View {
+        HStack {
+            Spacer()
+            Button {
+                dismissBar()
+            } label: {
+                if #available(iOS 26.0, macOS 26.0, watchOS 26.0, *) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark")
+                        Text("关闭")
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .font(.caption)
+                    .glassEffect(.regular, in: .capsule)
+                }else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark")
+                        Text("关闭")
+                    }
+                    #if os(iOS)
+                    .simpleTag(.border(verticalPad: 4, horizontalPad: 8, cornerRadius: 15, contentColor: .secondary))
+                    #endif
+                }
+            }
+            .padding(.trailing, 6)
         }
     }
     
@@ -147,53 +153,61 @@ extension SpeechLiveBar {
             HStack(spacing: 15) {
                 if ttsManager.isPlaying == false {
                     // 停止时
-                    Button(action: play, label: {
+                    PlainButton(action: play, label: {
                         playButton()
-                    }).buttonStyle(.plain)
+                    })
                 }else if ttsManager.systemTTS.systemSynthesizer.isPaused {
                     // 暂停时
-                    Button(action: play, label: {
+                    PlainButton(action: play, label: {
                         playButton()
-                    }).buttonStyle(.plain)
-                    Button(action: stop, label: {
+                    })
+                    PlainButton(action: stop, label: {
                         stopButton()
-                    }).buttonStyle(.plain)
+                    })
                 }else {
                     // 播放时
-                    Button(action: pause, label: {
+                    PlainButton(action: pause, label: {
                         pauseButton()
-                    }).buttonStyle(.plain)
-                    Button(action: stop, label: {
+                    })
+                    PlainButton(action: stop, label: {
                         stopButton()
-                    }).buttonStyle(.plain)
+                    })
                 }
             }
         }else {
             // 微软TTS控制
             if ttsManager.isPlaying == nil {
-                Button(action: stop, label: {
+                PlainButton(action: stop, label: {
                     loadingButton()
                 })
-                .buttonStyle(.plain)
                 .disabled(true)
             }else if ttsManager.isPlaying == true {
-                Button(action: stop, label: {
+                PlainButton(action: stop, label: {
                     stopButton()
-                }).buttonStyle(.plain)
+                })
             }else {
-                Button(action: play, label: {
+                PlainButton(action: play, label: {
                     playButton()
-                }).buttonStyle(.plain)
-                    .disabled(!isMSTTSReady)
+                })
+                .disabled(!isMSTTSReady)
             }
         }
     }
     
+    @ViewBuilder
     var buttonCircle: some View {
-        Circle()
-            .stroke(lineWidth: 2)
-            .frame(width: 36)
-            .foregroundStyle(.secondary)
+        if #available(iOS 26.0, macOS 26.0, watchOS 26.0, *) {
+            Circle()
+                .foregroundStyle(.secondary.opacity(0.01))
+                .glassEffect(.clear.interactive())
+                .frame(width: 36, height: 36)
+                .shadow(radius: 1)
+        }else {
+            Circle()
+                .stroke(lineWidth: 2)
+                .frame(width: 36)
+                .foregroundStyle(.secondary.opacity(0.6))
+        }
     }
     
     private func loadingButton() -> some View {
